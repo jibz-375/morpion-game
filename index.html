@@ -1,0 +1,1106 @@
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe Pro & Poki Guide</title>
+    <!-- FontAwesome & Tailwind -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Sound & Style Tweaks -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        /* Animations de symboles */
+        .symbol-pop {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .symbol-old {
+            animation: pulseWarning 0.8s infinite alternate;
+            opacity: 0.5;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        @keyframes pulseWarning {
+            0% { transform: scale(0.95); filter: opacity(0.4) saturate(0.5); }
+            100% { transform: scale(1.05); filter: opacity(0.8) saturate(1.5); }
+        }
+
+        /* Animation de la ligne gagnante */
+        .win-line {
+            position: absolute;
+            background: linear-gradient(90deg, #ec4899, #8b5cf6);
+            border-radius: 9999px;
+            z-index: 20;
+            transition: all 0.4s ease-in-out;
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.6);
+        }
+
+        /* Style des cellules */
+        .cell-glow:hover:not(:disabled) {
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
+        }
+
+        /* Skins Styles */
+        .skin-locked {
+            filter: grayscale(1) opacity(0.5);
+            cursor: not-allowed;
+        }
+
+        /* Thèmes de plateau */
+        .theme-cyber { background-color: #0f172a; border-color: #1e293b; }
+        .theme-retro { background-color: #2e0854; border-color: #a855f7; }
+        .theme-frost { background-color: #082f49; border-color: #38bdf8; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-full flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-gamepad text-xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-none bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">Tic-Tac-Toe Pro</h1>
+                    <span class="text-xs text-slate-400">Édition Ultime & Poki Ready</span>
+                </div>
+            </div>
+            
+            <!-- XP & Niveau -->
+            <div class="flex items-center gap-3">
+                <div class="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                    <i class="fa-solid fa-star text-amber-400 text-sm"></i>
+                    <div>
+                        <div class="text-[10px] text-slate-400 font-bold uppercase leading-none" id="player-title">Débutant</div>
+                        <div class="text-xs font-black text-amber-400 leading-none mt-0.5">Niv. <span id="player-level">1</span> (<span id="player-xp">0</span> XP)</div>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <a href="#cosmetics-section" onmouseenter="playSound('hover')" onclick="playSound('btn')" class="text-xs sm:text-sm font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-lg hover:bg-amber-500/30 transition flex items-center gap-2">
+                        <i class="fa-solid fa-crown text-amber-400"></i>
+                        <span class="hidden sm:inline">Boutique & Succès</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 py-8 w-full flex-grow flex flex-col items-center">
+
+        <!-- Zone du Jeu -->
+        <section class="w-full max-w-md flex flex-col items-center">
+            
+            <!-- Options de Jeu : Modes, Variantes & Minuteur -->
+            <div class="w-full bg-slate-900 border border-slate-800 p-3 rounded-2xl mb-4 shadow-xl flex flex-col gap-2">
+                <!-- Select Mode (2P vs IA) -->
+                <div class="flex bg-slate-950/60 rounded-xl p-1 border border-slate-800/80">
+                    <button id="mode-2p" onmouseenter="playSound('hover')" onclick="playSound('btn'); setMode('2p')" class="flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 text-white bg-indigo-600 shadow-md">
+                        <i class="fa-solid fa-users"></i> 2 Joueurs
+                    </button>
+                    <button id="mode-ai" onmouseenter="playSound('hover')" onclick="playSound('btn'); setMode('ai')" class="flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-robot"></i> Solo (IA)
+                    </button>
+                </div>
+
+                <div class="flex gap-2">
+                    <!-- Option Morpion Infini (Disappearing Mode) -->
+                    <button id="toggle-infinite" onmouseenter="playSound('hover')" onclick="playSound('btn'); toggleInfiniteMode()" class="flex-1 py-1.5 px-2 text-xs font-semibold rounded-xl border border-slate-700 bg-slate-950 text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-infinity"></i> Mode Infini: <span id="infinite-status" class="text-red-400 font-bold">OFF</span>
+                    </button>
+
+                    <!-- Option Minuteur (Speed Mode) -->
+                    <button id="toggle-timer" onmouseenter="playSound('hover')" onclick="playSound('btn'); toggleTimerMode()" class="flex-1 py-1.5 px-2 text-xs font-semibold rounded-xl border border-slate-700 bg-slate-950 text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-stopwatch"></i> Chrono 5s: <span id="timer-status" class="text-red-400 font-bold">OFF</span>
+                    </button>
+                </div>
+
+                <!-- Select Difficulté (Visible en mode IA) -->
+                <div id="difficulty-container" class="hidden flex bg-slate-950/60 rounded-xl p-1 border border-slate-800/80 gap-1">
+                    <button id="diff-super-easy" onmouseenter="playSound('hover')" onclick="playSound('btn'); setDifficulty('super-easy')" class="flex-1 py-1 text-xs font-semibold rounded-lg transition-all text-white bg-purple-600 shadow-md">
+                        Super Facile
+                    </button>
+                    <button id="diff-easy" onmouseenter="playSound('hover')" onclick="playSound('btn'); setDifficulty('easy')" class="flex-1 py-1 text-xs font-semibold rounded-lg transition-all text-slate-400 hover:text-white">
+                        Facile
+                    </button>
+                    <button id="diff-hard" onmouseenter="playSound('hover')" onclick="playSound('btn'); setDifficulty('hard')" class="flex-1 py-1 text-xs font-semibold rounded-lg transition-all text-slate-400 hover:text-white">
+                        Difficile
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chronomètre Bar (Si activé) -->
+            <div id="timer-bar-container" class="w-full bg-slate-900 border border-slate-800 rounded-full h-3 mb-4 hidden overflow-hidden p-0.5 relative">
+                <div id="timer-bar" class="bg-gradient-to-r from-emerald-500 to-amber-500 h-full rounded-full w-full transition-all duration-100 linear"></div>
+            </div>
+
+            <!-- Tableau des Scores -->
+            <div class="w-full grid grid-cols-3 gap-3 mb-4">
+                <div class="bg-slate-900/80 border border-cyan-500/30 rounded-2xl p-3 text-center shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-cyan-400"></div>
+                    <div class="text-xs text-slate-400 font-semibold mb-1 flex items-center justify-center gap-1">
+                        <span id="label-player-x">Joueur 1 (X)</span>
+                    </div>
+                    <div id="score-x" class="text-2xl font-extrabold text-cyan-400">0</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-700/50 rounded-2xl p-3 text-center shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-slate-500"></div>
+                    <div class="text-xs text-slate-400 font-semibold mb-1">Égalités</div>
+                    <div id="score-draws" class="text-2xl font-extrabold text-slate-300">0</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-pink-500/30 rounded-2xl p-3 text-center shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-pink-500"></div>
+                    <div class="text-xs text-slate-400 font-semibold mb-1 flex items-center justify-center gap-1">
+                        <span id="label-player-o">Joueur 2 (O)</span>
+                    </div>
+                    <div id="score-o" class="text-2xl font-extrabold text-pink-400">0</div>
+                </div>
+            </div>
+
+            <!-- Indicateur de tour & Emojis Taunts -->
+            <div class="w-full flex justify-between items-center mb-4 bg-slate-900/50 px-4 py-2 rounded-2xl border border-slate-800">
+                <div id="turn-indicator" class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <span>Tour:</span>
+                    <span id="current-player-display" class="font-bold text-cyan-400 flex items-center gap-1">
+                        <i class="fa-solid fa-xmark"></i> (X)
+                    </span>
+                </div>
+                <!-- Emojis Reactions / Taunts -->
+                <div class="flex gap-1.5">
+                    <button onmouseenter="playSound('hover')" onclick="sendTaunt('😂')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-sm transition active:scale-95" title="Envoyer Taunt">😂</button>
+                    <button onmouseenter="playSound('hover')" onclick="sendTaunt('😎')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-sm transition active:scale-95" title="Envoyer Taunt">😎</button>
+                    <button onmouseenter="playSound('hover')" onclick="sendTaunt('😱')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-sm transition active:scale-95" title="Envoyer Taunt">😱</button>
+                    <button onmouseenter="playSound('hover')" onclick="sendTaunt('🔥')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-sm transition active:scale-95" title="Envoyer Taunt">🔥</button>
+                </div>
+            </div>
+
+            <!-- Bulle Taunt Animée -->
+            <div id="taunt-bubble" class="hidden opacity-0 transition-all duration-300 mb-2 bg-indigo-600 text-white font-bold px-4 py-1.5 rounded-full text-sm shadow-lg animate-bounce"></div>
+
+            <!-- Grille du Morpion -->
+            <div id="game-board-container" class="theme-cyber relative w-full aspect-square border rounded-3xl p-3 shadow-2xl flex items-center justify-center mb-6 transition-colors duration-300">
+                
+                <!-- Ligne Gagnante Animée -->
+                <div id="winning-line" class="hidden"></div>
+
+                <!-- Grille 3x3 -->
+                <div class="grid grid-cols-3 grid-rows-3 gap-3 w-full h-full">
+                    <!-- 9 Cellules -->
+                    <button onmouseenter="playSound('hover')" onclick="handleCellClick(0)" class="cell cell-glow bg-slate-950/80 hover:bg-slate-800/60 rounded-2xl border border-slate-800/80 flex items-center justify-center text-4xl sm:text-5xl font-extrabold transition-all duration-200 focus:outline-none"></button>
+                    <button onmouseenter="playSound('hover')" onclick="handleCellClick(1)" class="cell cell-glow bg-slate-950/80 hover:bg-slate-800/60 rounded-2xl border border-slate-800/80 flex items-center justify-center text-4xl sm:text-5xl font-extrabold transition-all duration-200 focus:outline-none"></button>
+                    <button onmouseenter="playSound('hover')" onclick="handleCellClick(2)" class="cell cell-glow bg-slate-950/80 hover:bg-slate-800/60 rounded-2xl border border-slate-800/80 flex items-center justify-center text-4xl sm:text-5xl font-extrabold transition-all duration-200 focus:outline-none"></button>
+                    <button onmouseenter="playSound('hover')" onclick="handleCellClick(3)" class="cell cell-glow bg-slate-950/80 hover:bg-slate-800/60 rounded-2xl border border-slate-800/80 flex items-center justify-center text-4xl sm:text-5xl font-extrabold transition-all duration-200 focus:outline-none"></button>
+                    <button onmouseenter="playSound('hover')" onclick="handleCellClick(4)" class="cell cell-glow bg-slate-950/80 hover:bg-slate-800/60 rounded-2xl border border-slate-800/80 flex items-center justify-center text-4xl sm:text-5xl font-extrabold transition-all duration-200 focus:outline-none"></button>
+                    <button onmouseenter="playSound('hover')" onclick="handleCellClick(5)" class="cell cell-glow bg-slate-950/80 hover:bg-slate-800/60 rounded-2xl border border-slate-800/80 flex items-center justify-center text-4xl sm:text-5xl font-extrabold transition-all duration-200 focus:outline-none"></button>
+                    <button onmouseenter="playSound('hover')" onclick="handleCellClick(6)" class="cell cell-glow bg-slate-950/80 hover:bg-slate-800/60 rounded-2xl border border-slate-800/80 flex items-center justify-center text-4xl sm:text-5xl font-extrabold transition-all duration-200 focus:outline-none"></button>
+                    <button onmouseenter="playSound('hover')" onclick="handleCellClick(7)" class="cell cell-glow bg-slate-950/80 hover:bg-slate-800/60 rounded-2xl border border-slate-800/80 flex items-center justify-center text-4xl sm:text-5xl font-extrabold transition-all duration-200 focus:outline-none"></button>
+                    <button onmouseenter="playSound('hover')" onclick="handleCellClick(8)" class="cell cell-glow bg-slate-950/80 hover:bg-slate-800/60 rounded-2xl border border-slate-800/80 flex items-center justify-center text-4xl sm:text-5xl font-extrabold transition-all duration-200 focus:outline-none"></button>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3 w-full">
+                <button onmouseenter="playSound('hover')" onclick="playSound('btn'); resetGame(false)" class="flex-1 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/60 font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 shadow-lg">
+                    <i class="fa-solid fa-rotate-right"></i> Recommencer
+                </button>
+                <button onmouseenter="playSound('hover')" onclick="playSound('btn'); resetScores()" class="bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-red-400 border border-slate-700/60 font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 shadow-lg" title="Réinitialiser les scores">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </div>
+
+        </section>
+
+        <!-- SECTION COSMÉTIQUES & SUCCÈS -->
+        <section id="cosmetics-section" class="w-full max-w-4xl my-8 bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-sm">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 text-2xl font-bold">
+                        <i class="fa-solid fa-crown"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-extrabold text-white">Boutique, Thèmes & Succès</h2>
+                        <p class="text-slate-400 text-sm">Personnalise ton jeu et débloque tous les badges d'accomplissement !</p>
+                    </div>
+                </div>
+                <div class="bg-slate-950 border border-slate-800 px-4 py-2 rounded-xl flex items-center gap-3">
+                    <i class="fa-solid fa-trophy text-amber-400 text-lg"></i>
+                    <div>
+                        <div class="text-xs text-slate-400 font-semibold">Total Victoires</div>
+                        <div id="total-wins-display" class="text-lg font-black text-amber-400">0 Victoire</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Thèmes de Plateau -->
+            <div class="mb-6">
+                <h3 class="text-sm font-bold text-indigo-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
+                    <i class="fa-solid fa-palette"></i> Thèmes de Plateau
+                </h3>
+                <div id="board-themes-container" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <!-- Généré dynamiquement -->
+                </div>
+            </div>
+
+            <!-- Skins pour X -->
+            <div class="mb-6">
+                <h3 class="text-sm font-bold text-cyan-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
+                    <i class="fa-solid fa-xmark"></i> Skins Joueur X
+                </h3>
+                <div id="skins-x-container" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <!-- Généré dynamiquement -->
+                </div>
+            </div>
+
+            <!-- Skins pour O -->
+            <div class="mb-6">
+                <h3 class="text-sm font-bold text-pink-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
+                    <i class="fa-regular fa-circle"></i> Skins Joueur O
+                </h3>
+                <div id="skins-o-container" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <!-- Généré dynamiquement -->
+                </div>
+            </div>
+
+            <!-- Succès / Badges -->
+            <div>
+                <h3 class="text-sm font-bold text-amber-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
+                    <i class="fa-solid fa-award"></i> Succès & Badges
+                </h3>
+                <div id="achievements-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Généré dynamiquement -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Divider -->
+        <hr class="w-full border-slate-800 my-8">
+
+        <!-- GUIDE DEVELOPEMENT GDEVELOP -->
+        <section id="gdevelop-guide" class="w-full max-w-4xl text-left bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-sm">
+            
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-2xl font-bold">
+                    GD
+                </div>
+                <div>
+                    <h2 class="text-2xl font-extrabold text-white">Guide : Recréer ce jeu sur GDevelop</h2>
+                    <p class="text-slate-400 text-sm">Structure pas à pas des variables, événements et logique pour Poki.</p>
+                </div>
+            </div>
+
+            <!-- Étape 1 : Structure des Objets -->
+            <div class="mb-8">
+                <h3 class="text-lg font-bold text-indigo-300 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-cubes"></i> 1. Objets & Sprites nécessaires
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                        <span class="font-semibold text-white block mb-1">Cellule (Sprite)</span>
+                        <p class="text-xs text-slate-400">3 animations : 0=Vide, 1=X, 2=O. Créez un groupe de 9 instances sur la scène disposées en grille 3x3.</p>
+                    </div>
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                        <span class="font-semibold text-white block mb-1">WinningLine (Sprite)</span>
+                        <p class="text-xs text-slate-400">Une barre fine colorée. Changez son angle et sa position pour couvrir les 8 lignes gagnantes possibles.</p>
+                    </div>
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                        <span class="font-semibold text-white block mb-1">Textes UI</span>
+                        <p class="text-xs text-slate-400">Objets texte pour afficher le score de X, O, les Égalités et l'état du tour ("Tour de X").</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Étape 2 : Variables de Scène -->
+            <div class="mb-8">
+                <h3 class="text-lg font-bold text-purple-300 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-code-branch"></i> 2. Variables de Scène (Scene Variables)
+                </h3>
+                <div class="bg-slate-950 rounded-xl p-4 border border-slate-800 text-sm overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-slate-300">
+                                <th class="py-2 pr-4 font-semibold">Nom de Variable</th>
+                                <th class="py-2 pr-4 font-semibold">Type</th>
+                                <th class="py-2 font-semibold">Description / Valeurs</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-slate-400 divide-y divide-slate-800/50">
+                            <tr>
+                                <td class="py-2 pr-4 font-mono text-cyan-400">CurrentTurn</td>
+                                <td class="py-2 pr-4">Texte / Chaîne</td>
+                                <td class="py-2"><code>"X"</code> ou <code>"O"</code></td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 pr-4 font-mono text-cyan-400">GameMode</td>
+                                <td class="py-2 pr-4">Texte / Chaîne</td>
+                                <td class="py-2"><code>"2P"</code> ou <code>"AI"</code></td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 pr-4 font-mono text-cyan-400">Difficulty</td>
+                                <td class="py-2 pr-4">Texte / Chaîne</td>
+                                <td class="py-2"><code>"SuperEasy"</code>, <code>"Easy"</code> ou <code>"Hard"</code></td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 pr-4 font-mono text-cyan-400">GameState</td>
+                                <td class="py-2 pr-4">Texte / Chaîne</td>
+                                <td class="py-2"><code>"Playing"</code>, <code>"Won"</code>, <code>"Draw"</code></td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 pr-4 font-mono text-cyan-400">Board (Tableau/Structure)</td>
+                                <td class="py-2 pr-4">Array (Taille 9)</td>
+                                <td class="py-2">Stocke l'état des cases (ex: <code>["X", "", "O", ...]</code>)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Étape 3 : Logique d'Événements dans GDevelop -->
+            <div class="mb-8">
+                <h3 class="text-lg font-bold text-pink-300 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-diagram-project"></i> 3. Logique des Événements clés
+                </h3>
+                
+                <div class="space-y-4">
+                    <!-- Event 1 -->
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                        <div class="font-bold text-slate-200 mb-1">A. Clic sur une Cellule (Joueur Humain)</div>
+                        <ul class="list-disc list-inside text-xs text-slate-400 space-y-1 pl-1">
+                            <li><strong>Conditions :</strong> Souris/Toucher est sur <code>Cellule</code> + Clic gauche enfoncé + Animation de <code>Cellule</code> == 0 + <code>GameState</code> == "Playing".</li>
+                            <li><strong>Actions :</strong> 
+                                Set Animation de <code>Cellule</code> à (1 pour X, 2 pour O). Jouer son "Click". Mettre à jour le tableau <code>Board[Cellule.Variable(Id)]</code>. Lancer l'événement de vérification des conditions de victoire.
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Event 2 -->
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                        <div class="font-bold text-slate-200 mb-1">B. Tours de l'IA (Mode Robot)</div>
+                        <ul class="list-disc list-inside text-xs text-slate-400 space-y-1 pl-1">
+                            <li><strong>Conditions :</strong> <code>GameMode</code> == "AI" + <code>CurrentTurn</code> == "O" + <code>GameState</code> == "Playing".</li>
+                            <li><strong>Actions :</strong> Déclencher un minuteur (ex: 0.3 sec pour l'effet de réflexion). Utiliser l'extension JS ou une fonction d'événement pour choisir la meilleure case disponible (Minimax ou aléatoire si Facile), puis Simuler un clic sur cette case.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Event 3 -->
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                        <div class="font-bold text-slate-200 mb-1">C. Détection de Victoire</div>
+                        <ul class="list-disc list-inside text-xs text-slate-400 space-y-1 pl-1">
+                            <li>Créer une fonction/sous-événement testant les 8 combinaisons (0-1-2, 3-4-5, 6-7-8, 0-3-6, 1-4-7, 2-5-8, 0-4-8, 2-4-6).</li>
+                            <li>Si 3 symboles identiques sont alignés : passer <code>GameState</code> à "Won", incrémenter le score du gagnant, afficher et orienter l'objet <code>WinningLine</code>, et jouer un son d'applause.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Étape 4 : Intégration Poki SDK dans GDevelop -->
+            <div>
+                <h3 class="text-lg font-bold text-emerald-300 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> 4. Intégration pour Poki
+                </h3>
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-2">
+                    <p>1. Dans GDevelop, installez l'extension officielle <strong>Poki SDK</strong> depuis le magasin d'extensions intégré.</p>
+                    <p>2. Au démarrage du jeu, appelez l'action <code class="text-emerald-400">Poki :: Commercial Break</code> pour charger le SDK.</p>
+                    <p>3. À la fin de chaque partie (Victoire ou Égalité), ajoutez l'action <code class="text-emerald-400">Poki :: Gameplay Stop</code> puis <code class="text-emerald-400">Poki :: Commercial Break</code> pour diffuser une publicité rémunératrice avant la relance de la partie.</p>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-500 bg-slate-950">
+        <div class="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div>Conçu pour l'export Web & Poki SDK</div>
+            <div class="flex gap-4">
+                <span class="hover:text-slate-400 transition cursor-pointer">GDevelop ready</span>
+                <span>•</span>
+                <span class="hover:text-slate-400 transition cursor-pointer">HTML5 Engine</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Logic Script du Jeu -->
+    <script>
+        /* === ÉTAT DU JEU (Game State) === */
+        let board = Array(9).fill('');
+        let moveHistory = []; // Pour le mode Morpion Infini [{index, player}]
+        let currentPlayer = 'X'; // 'X' commence toujours
+        let gameActive = true;
+        let gameMode = '2p'; // '2p' ou 'ai'
+        let aiDifficulty = 'super-easy'; // 'super-easy', 'easy' ou 'hard'
+
+        let isInfiniteMode = false;
+        let isTimerMode = false;
+        let timerInterval = null;
+        let timerSeconds = 5;
+
+        let totalWins = 0;
+        let winStreak = 0;
+        let moveCount = 0;
+        let playerXP = 0;
+        let playerLevel = 1;
+
+        let activeSkinX = 'default-x';
+        let activeSkinO = 'default-o';
+        let activeBoardTheme = 'cyber';
+
+        let scores = { x: 0, o: 0, draws: 0 };
+
+        /* === DÉFINITION DES NIVEAUX / TITRES === */
+        const TITLES = [
+            { lvl: 1, title: "Débutant" },
+            { lvl: 3, title: "Amateur" },
+            { lvl: 5, title: "Stratège" },
+            { lvl: 8, title: "Maître du Morpion" },
+            { lvl: 12, title: "Légende Imbattable" }
+        ];
+
+        /* === DÉFINITION DES THÈMES DE PLATEAU === */
+        const BOARD_THEMES = [
+            { id: 'cyber', name: 'Néon Cyber', req: 0, class: 'theme-cyber', border: 'border-slate-800' },
+            { id: 'retro', name: 'Rétro Arcade 80s', req: 3, class: 'theme-retro', border: 'border-purple-500' },
+            { id: 'frost', name: 'Givre & Glace', req: 10, class: 'theme-frost', border: 'border-sky-400' }
+        ];
+
+        /* === DÉFINITION DES SKINS === */
+        const SKINS_X = [
+            { id: 'default-x', name: 'Néon Cyberspace', req: 0, icon: 'fa-solid fa-xmark', color: 'text-cyan-400 drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]' },
+            { id: 'fire-x', name: 'Flamme Infernale', req: 5, icon: 'fa-solid fa-fire', color: 'text-orange-500 drop-shadow-[0_0_12px_rgba(249,115,22,0.6)]' },
+            { id: 'emerald-x', name: 'Laser Émeraude', req: 15, icon: 'fa-solid fa-bolt', color: 'text-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]' },
+            { id: 'crown-x', name: 'Couronne d\'Or', req: 30, icon: 'fa-solid fa-crown', color: 'text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)]' }
+        ];
+
+        const SKINS_O = [
+            { id: 'default-o', name: 'Néon Magenta', req: 0, icon: 'fa-regular fa-circle', color: 'text-pink-500 drop-shadow-[0_0_12px_rgba(236,72,153,0.5)]' },
+            { id: 'galaxy-o', name: 'Galaxy Violet', req: 5, icon: 'fa-solid fa-atom', color: 'text-purple-400 drop-shadow-[0_0_12px_rgba(192,132,252,0.6)]' },
+            { id: 'sun-o', name: 'Soleil Levant', req: 15, icon: 'fa-solid fa-sun', color: 'text-yellow-400 drop-shadow-[0_0_12px_rgba(250,204,21,0.6)]' },
+            { id: 'frost-o', name: 'Diamant de Givre', req: 30, icon: 'fa-solid fa-gem', color: 'text-sky-300 drop-shadow-[0_0_15px_rgba(125,211,252,0.8)]' }
+        ];
+
+        /* === DÉFINITION DES SUCCÈS === */
+        const ACHIEVEMENTS = [
+            { id: 'first_win', name: 'Première Victoire', desc: 'Gagner 1 partie.', unlocked: false, icon: 'fa-solid fa-trophy' },
+            { id: 'speed_win', name: 'Victoire Éclair', desc: 'Gagner une partie en 5 coups ou moins.', unlocked: false, icon: 'fa-solid fa-bolt' },
+            { id: 'robot_slayer', name: 'Tueur de Robots', desc: 'Battre l\'IA en mode Difficile.', unlocked: false, icon: 'fa-solid fa-robot' },
+            { id: 'streak_3', name: 'En Feu !', desc: 'Réaliser une série de 3 victoires d\'affilée.', unlocked: false, icon: 'fa-solid fa-fire-flame-curved' }
+        ];
+
+        const winningCombos = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Lignes
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Colonnes
+            [0, 4, 8], [2, 4, 6]             // Diagonales
+        ];
+
+        /* === Web Audio API Synth (Sons synthétisés complets) === */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'hover') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(220, now);
+                gain.gain.setValueAtTime(0.02, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                osc.start(now);
+                osc.stop(now + 0.04);
+            } else if (type === 'btn') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(350, now);
+                osc.frequency.exponentialRampToValueAtTime(700, now + 0.06);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                osc.start(now);
+                osc.stop(now + 0.06);
+            } else if (type === 'x') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'o') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(300, now + 0.12);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                osc.start(now);
+                osc.stop(now + 0.12);
+            } else if (type === 'disappear') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'win') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+                osc.frequency.setValueAtTime(783.99, now + 0.2);
+                osc.frequency.setValueAtTime(1046.50, now + 0.3);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } else if (type === 'draw') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.linearRampToValueAtTime(150, now + 0.3);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'unlock') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.4);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+        }
+
+        /* === GESTION DU MINUTEUR === */
+        function startTurnTimer() {
+            stopTurnTimer();
+            if (!isTimerMode || !gameActive) return;
+
+            document.getElementById('timer-bar-container').classList.remove('hidden');
+            let timeLeft = 5000;
+            const timerBar = document.getElementById('timer-bar');
+            timerBar.style.width = '100%';
+
+            const startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                timeLeft = 5000 - elapsed;
+                
+                if (timeLeft <= 0) {
+                    stopTurnTimer();
+                    // Pénalité : Changement forcé de tour ou coup aléatoire
+                    if (gameActive) {
+                        const randomCell = getRandomAvailableCell();
+                        if (randomCell !== null) {
+                            makeMove(randomCell, currentPlayer);
+                        }
+                    }
+                } else {
+                    timerBar.style.width = `${(timeLeft / 5000) * 100}%`;
+                }
+            }, 50);
+        }
+
+        function stopTurnTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function toggleTimerMode() {
+            isTimerMode = !isTimerMode;
+            document.getElementById('timer-status').textContent = isTimerMode ? 'ON' : 'OFF';
+            document.getElementById('timer-status').className = isTimerMode ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold';
+            if (!isTimerMode) {
+                document.getElementById('timer-bar-container').classList.add('hidden');
+                stopTurnTimer();
+            } else if (gameActive) {
+                startTurnTimer();
+            }
+        }
+
+        function toggleInfiniteMode() {
+            isInfiniteMode = !isInfiniteMode;
+            document.getElementById('infinite-status').textContent = isInfiniteMode ? 'ON' : 'OFF';
+            document.getElementById('infinite-status').className = isInfiniteMode ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold';
+            resetGame(false);
+        }
+
+        /* === GESTION DES TAUNTS === */
+        function sendTaunt(emoji) {
+            const bubble = document.getElementById('taunt-bubble');
+            bubble.textContent = `${currentPlayer === 'X' ? 'Joueur X' : 'Joueur O'} : ${emoji}`;
+            bubble.classList.remove('hidden');
+            setTimeout(() => bubble.classList.remove('opacity-0'), 10);
+            playSound('btn');
+
+            setTimeout(() => {
+                bubble.classList.add('opacity-0');
+                setTimeout(() => bubble.classList.add('hidden'), 300);
+            }, 1800);
+        }
+
+        /* === GESTION DES CLICS & TOURS === */
+        function handleCellClick(index) {
+            if (board[index] !== '' || !gameActive) return;
+            if (gameMode === 'ai' && currentPlayer === 'O') return;
+
+            makeMove(index, currentPlayer);
+
+            if (gameActive && gameMode === 'ai' && currentPlayer === 'O') {
+                setTimeout(makeAIMove, 450);
+            }
+        }
+
+        function makeMove(index, player) {
+            moveCount++;
+            addXP(10); // Gain d'XP par coup
+
+            // Logique du Mode Morpion Infini (Max 3 symboles par joueur)
+            if (isInfiniteMode) {
+                const playerMoves = moveHistory.filter(m => m.player === player);
+                if (playerMoves.length >= 3) {
+                    const oldestMove = playerMoves.shift();
+                    board[oldestMove.index] = '';
+                    const oldCell = document.querySelectorAll('.cell')[oldestMove.index];
+                    oldCell.innerHTML = '';
+                    moveHistory = moveHistory.filter(m => m !== oldestMove);
+                    playSound('disappear');
+                }
+                moveHistory.push({ index, player });
+            }
+
+            board[index] = player;
+            renderBoardUI();
+
+            // Effet d'avertissement sur le plus ancien symbole en mode infini
+            if (isInfiniteMode) {
+                const playerMoves = moveHistory.filter(m => m.player === player);
+                if (playerMoves.length === 3) {
+                    const oldestIndex = playerMoves[0].index;
+                    const oldestCell = document.querySelectorAll('.cell')[oldestIndex];
+                    if (oldestCell.firstChild) {
+                        oldestCell.firstChild.classList.add('symbol-old');
+                    }
+                }
+            }
+
+            if (player === 'X') {
+                playSound('x');
+            } else {
+                playSound('o');
+            }
+
+            // Vérification de la victoire / égalité
+            if (checkWin(board, player)) {
+                handleWin(player);
+                return;
+            }
+
+            if (!isInfiniteMode && board.every(c => c !== '')) {
+                handleDraw();
+                return;
+            }
+
+            // Alternance du tour
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            updateTurnDisplay();
+            startTurnTimer();
+        }
+
+        function renderBoardUI() {
+            const cells = document.querySelectorAll('.cell');
+            board.forEach((val, idx) => {
+                const cell = cells[idx];
+                if (val === 'X') {
+                    const skin = SKINS_X.find(s => s.id === activeSkinX) || SKINS_X[0];
+                    cell.innerHTML = `<span class="symbol-pop ${skin.color}"><i class="${skin.icon}"></i></span>`;
+                } else if (val === 'O') {
+                    const skin = SKINS_O.find(s => s.id === activeSkinO) || SKINS_O[0];
+                    cell.innerHTML = `<span class="symbol-pop ${skin.color}"><i class="${skin.icon}"></i></span>`;
+                } else {
+                    cell.innerHTML = '';
+                }
+            });
+        }
+
+        /* === SYSTEME DE NIVEAUX ET XP === */
+        function addXP(amount) {
+            playerXP += amount;
+            const nextLvlXP = playerLevel * 50;
+            if (playerXP >= nextLvlXP) {
+                playerLevel++;
+                playSound('unlock');
+            }
+            updateXPUI();
+        }
+
+        function updateXPUI() {
+            document.getElementById('player-xp').textContent = playerXP;
+            document.getElementById('player-level').textContent = playerLevel;
+            
+            let currentTitle = TITLES[0].title;
+            TITLES.forEach(t => {
+                if (playerLevel >= t.lvl) currentTitle = t.title;
+            });
+            document.getElementById('player-title').textContent = currentTitle;
+        }
+
+        /* === AFFICHAGE DU TOUR === */
+        function updateTurnDisplay() {
+            const display = document.getElementById('current-player-display');
+            if (currentPlayer === 'X') {
+                const skin = SKINS_X.find(s => s.id === activeSkinX) || SKINS_X[0];
+                const labelX = gameMode === '2p' ? "Joueur 1 (X)" : "Joueur (X)";
+                display.className = "font-bold text-cyan-400 flex items-center gap-1.5";
+                display.innerHTML = `<i class="${skin.icon} ${skin.color}"></i> ${labelX}`;
+            } else {
+                const skin = SKINS_O.find(s => s.id === activeSkinO) || SKINS_O[0];
+                const labelO = gameMode === '2p' ? "Joueur 2 (O)" : "IA (O)";
+                display.className = "font-bold text-pink-400 flex items-center gap-1.5";
+                display.innerHTML = `<i class="${skin.icon} ${skin.color}"></i> ${labelO}`;
+            }
+        }
+
+        /* === DÉTECTION DE VICTOIRE & DESSIN DE LA LIGNE === */
+        function checkWin(currentBoard, player) {
+            return winningCombos.find(combo => {
+                return combo.every(index => currentBoard[index] === player);
+            });
+        }
+
+        function handleWin(winner) {
+            gameActive = false;
+            stopTurnTimer();
+            scores[winner.toLowerCase()]++;
+            
+            if (gameMode === '2p' || (gameMode === 'ai' && winner === 'X')) {
+                totalWins++;
+                winStreak++;
+                addXP(100);
+            } else {
+                winStreak = 0;
+            }
+
+            checkAchievements(winner);
+            updateScoresUI();
+            renderCosmeticsUI();
+            playSound('win');
+
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 120,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            const winningCombo = checkWin(board, winner);
+            if (winningCombo) {
+                drawWinningLine(winningCombo);
+            }
+
+            document.getElementById('current-player-display').textContent = `Victoire de ${winner} !`;
+        }
+
+        function handleDraw() {
+            gameActive = false;
+            stopTurnTimer();
+            winStreak = 0;
+            scores.draws++;
+            addXP(25);
+            updateScoresUI();
+            playSound('draw');
+            document.getElementById('current-player-display').textContent = "Match Nul !";
+        }
+
+        function drawWinningLine(combo) {
+            const line = document.getElementById('winning-line');
+            const cells = document.querySelectorAll('.cell');
+            const cell0 = cells[combo[0]].getBoundingClientRect();
+            const cell2 = cells[combo[2]].getBoundingClientRect();
+            const gridRect = cells[0].parentElement.getBoundingClientRect();
+
+            const x1 = cell0.left + cell0.width / 2 - gridRect.left;
+            const y1 = cell0.top + cell0.height / 2 - gridRect.top;
+            const x2 = cell2.left + cell2.width / 2 - gridRect.left;
+            const y2 = cell2.top + cell2.height / 2 - gridRect.top;
+
+            const distance = Math.hypot(x2 - x1, y2 - y1);
+            const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+
+            line.className = 'win-line';
+            line.style.width = `${distance}px`;
+            line.style.height = '8px';
+            line.style.left = `${x1}px`;
+            line.style.top = `${y1 - 4}px`;
+            line.style.transformOrigin = '0% 50%';
+            line.style.transform = `rotate(${angle}deg)`;
+        }
+
+        /* === VERIFICATION DES SUCCES === */
+        function checkAchievements(winner) {
+            if (winner === 'X' || gameMode === '2p') {
+                unlockAchievement('first_win');
+                if (moveCount <= 5) unlockAchievement('speed_win');
+                if (gameMode === 'ai' && aiDifficulty === 'hard' && winner === 'X') unlockAchievement('robot_slayer');
+                if (winStreak >= 3) unlockAchievement('streak_3');
+            }
+        }
+
+        function unlockAchievement(id) {
+            const ach = ACHIEVEMENTS.find(a => a.id === id);
+            if (ach && !ach.unlocked) {
+                ach.unlocked = true;
+                playSound('unlock');
+            }
+        }
+
+        /* === INTELLIGENCE ARTIFICIELLE === */
+        function getRandomAvailableCell() {
+            const emptyIndices = board.map((val, idx) => val === '' ? idx : null).filter(val => val !== null);
+            if (emptyIndices.length === 0) return null;
+            return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+        }
+
+        function findWinningOrBlockingMove(player) {
+            const emptyIndices = board.map((val, idx) => val === '' ? idx : null).filter(val => val !== null);
+            for (let idx of emptyIndices) {
+                let boardCopy = [...board];
+                boardCopy[idx] = player;
+                if (checkWin(boardCopy, player)) {
+                    return idx;
+                }
+            }
+            return null;
+        }
+
+        function makeAIMove() {
+            if (!gameActive) return;
+
+            let chosenIndex = null;
+
+            if (aiDifficulty === 'super-easy') {
+                chosenIndex = getRandomAvailableCell();
+            } else if (aiDifficulty === 'easy') {
+                if (Math.random() < 0.35) {
+                    chosenIndex = findWinningOrBlockingMove('O');
+                    if (chosenIndex === null) {
+                        chosenIndex = findWinningOrBlockingMove('X');
+                    }
+                }
+                if (chosenIndex === null) {
+                    chosenIndex = getRandomAvailableCell();
+                }
+            } else if (aiDifficulty === 'hard') {
+                // Coups stratégiques intelligents pour le niveau Difficile
+                chosenIndex = findWinningOrBlockingMove('O'); // 1. Gagner si possible
+                if (chosenIndex === null) {
+                    chosenIndex = findWinningOrBlockingMove('X'); // 2. Bloquer le joueur
+                }
+                if (chosenIndex === null && board[4] === '') {
+                    chosenIndex = 4; // 3. Preder le centre
+                }
+                if (chosenIndex === null) {
+                    // 4. Preder un coin disponible
+                    const corners = [0, 2, 6, 8].filter(i => board[i] === '');
+                    if (corners.length > 0) {
+                        chosenIndex = corners[Math.floor(Math.random() * corners.length)];
+                    }
+                }
+                if (chosenIndex === null) {
+                    chosenIndex = getRandomAvailableCell();
+                }
+            }
+
+            if (chosenIndex !== null && chosenIndex !== undefined) {
+                makeMove(chosenIndex, 'O');
+            }
+        }
+
+        /* === GESTION DES THÈMES DE PLATEAU & COSMÉTIQUES === */
+        function selectBoardTheme(themeId) {
+            const theme = BOARD_THEMES.find(t => t.id === themeId);
+            if (!theme || totalWins < theme.req) return;
+
+            activeBoardTheme = themeId;
+            const container = document.getElementById('game-board-container');
+            container.className = `relative w-full aspect-square border rounded-3xl p-3 shadow-2xl flex items-center justify-center mb-6 transition-colors duration-300 ${theme.class} ${theme.border}`;
+            
+            playSound('unlock');
+            renderCosmeticsUI();
+        }
+
+        function selectSkin(type, skinId) {
+            const list = type === 'X' ? SKINS_X : SKINS_O;
+            const skin = list.find(s => s.id === skinId);
+            if (!skin || totalWins < skin.req) return;
+
+            if (type === 'X') {
+                activeSkinX = skinId;
+            } else {
+                activeSkinO = skinId;
+            }
+            playSound('unlock');
+            renderCosmeticsUI();
+            updateTurnDisplay();
+            renderBoardUI();
+        }
+
+        function renderCosmeticsUI() {
+            document.getElementById('total-wins-display').textContent = `${totalWins} Victoire${totalWins > 1 ? 's' : ''}`;
+
+            // Render Themes
+            const themesContainer = document.getElementById('board-themes-container');
+            themesContainer.innerHTML = BOARD_THEMES.map(t => {
+                const unlocked = totalWins >= t.req;
+                const active = activeBoardTheme === t.id;
+                return `
+                    <div onmouseenter="playSound('hover')" onclick="selectBoardTheme('${t.id}')" class="bg-slate-950 p-3 rounded-2xl border ${active ? 'border-indigo-400 bg-indigo-950/20' : 'border-slate-800'} ${!unlocked ? 'skin-locked' : 'cursor-pointer hover:border-slate-600'} transition flex flex-col items-center justify-center text-center">
+                        <div class="text-xs font-bold text-slate-200 mb-1">${t.name}</div>
+                        <div class="text-[10px] ${unlocked ? 'text-emerald-400' : 'text-slate-500'} font-semibold">
+                            ${unlocked ? (active ? 'Actif' : 'Débloqué') : `<i class="fa-solid fa-lock"></i> ${t.req} victoires`}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Render Skins X & O
+            const containerX = document.getElementById('skins-x-container');
+            const containerO = document.getElementById('skins-o-container');
+
+            containerX.innerHTML = SKINS_X.map(skin => {
+                const unlocked = totalWins >= skin.req;
+                const active = activeSkinX === skin.id;
+                return `
+                    <div onmouseenter="playSound('hover')" onclick="selectSkin('X', '${skin.id}')" class="bg-slate-950 p-3 rounded-2xl border ${active ? 'border-cyan-400 bg-cyan-950/20' : 'border-slate-800'} ${!unlocked ? 'skin-locked' : 'cursor-pointer hover:border-slate-600'} transition flex flex-col items-center justify-center text-center">
+                        <div class="text-3xl mb-1 ${skin.color}"><i class="${skin.icon}"></i></div>
+                        <div class="text-xs font-bold text-slate-200 mb-0.5">${skin.name}</div>
+                        <div class="text-[10px] ${unlocked ? 'text-emerald-400' : 'text-slate-500'} font-semibold">
+                            ${unlocked ? (active ? 'Équipé' : 'Débloqué') : `<i class="fa-solid fa-lock"></i> ${skin.req} victoires`}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            containerO.innerHTML = SKINS_O.map(skin => {
+                const unlocked = totalWins >= skin.req;
+                const active = activeSkinO === skin.id;
+                return `
+                    <div onmouseenter="playSound('hover')" onclick="selectSkin('O', '${skin.id}')" class="bg-slate-950 p-3 rounded-2xl border ${active ? 'border-pink-500 bg-pink-950/20' : 'border-slate-800'} ${!unlocked ? 'skin-locked' : 'cursor-pointer hover:border-slate-600'} transition flex flex-col items-center justify-center text-center">
+                        <div class="text-3xl mb-1 ${skin.color}"><i class="${skin.icon}"></i></div>
+                        <div class="text-xs font-bold text-slate-200 mb-0.5">${skin.name}</div>
+                        <div class="text-[10px] ${unlocked ? 'text-emerald-400' : 'text-slate-500'} font-semibold">
+                            ${unlocked ? (active ? 'Équipé' : 'Débloqué') : `<i class="fa-solid fa-lock"></i> ${skin.req} victoires`}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Render Achievements
+            const achContainer = document.getElementById('achievements-container');
+            achContainer.innerHTML = ACHIEVEMENTS.map(ach => `
+                <div class="bg-slate-950 p-3 rounded-2xl border ${ach.unlocked ? 'border-amber-500/50 bg-amber-950/10' : 'border-slate-800 opacity-60'} flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl ${ach.unlocked ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-900 text-slate-600'} flex items-center justify-center text-lg">
+                        <i class="${ach.icon}"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs font-bold text-slate-200">${ach.name}</div>
+                        <div class="text-[11px] text-slate-400">${ach.desc}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        /* === CONTRÔLES & REINITIALISATION === */
+        function setMode(mode) {
+            gameMode = mode;
+            document.getElementById('mode-2p').className = mode === '2p' ? "flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 text-white bg-indigo-600 shadow-md" : "flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 text-slate-400 hover:text-white";
+            document.getElementById('mode-ai').className = mode === 'ai' ? "flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 text-white bg-indigo-600 shadow-md" : "flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 text-slate-400 hover:text-white";
+
+            const diffContainer = document.getElementById('difficulty-container');
+            const labelX = document.getElementById('label-player-x');
+            const labelO = document.getElementById('label-player-o');
+            
+            if (mode === 'ai') {
+                diffContainer.classList.remove('hidden');
+                labelX.textContent = "Joueur (X)";
+                labelO.textContent = "IA (O)";
+            } else {
+                diffContainer.classList.add('hidden');
+                labelX.textContent = "Joueur 1 (X)";
+                labelO.textContent = "Joueur 2 (O)";
+            }
+
+            resetGame(false);
+        }
+
+        function setDifficulty(diff) {
+            aiDifficulty = diff;
+            
+            const btnSuperEasy = document.getElementById('diff-super-easy');
+            const btnEasy = document.getElementById('diff-easy');
+            const btnHard = document.getElementById('diff-hard');
+
+            const activeClass = "flex-1 py-1 text-xs font-semibold rounded-lg transition-all text-white bg-purple-600 shadow-md";
+            const inactiveClass = "flex-1 py-1 text-xs font-semibold rounded-lg transition-all text-slate-400 hover:text-white";
+
+            btnSuperEasy.className = diff === 'super-easy' ? activeClass : inactiveClass;
+            btnEasy.className = diff === 'easy' ? activeClass : inactiveClass;
+            btnHard.className = diff === 'hard' ? activeClass : inactiveClass;
+
+            resetGame(false);
+        }
+
+        function resetGame(keepScores = true) {
+            stopTurnTimer();
+            board = Array(9).fill('');
+            moveHistory = [];
+            currentPlayer = 'X';
+            gameActive = true;
+            moveCount = 0;
+
+            renderBoardUI();
+
+            const line = document.getElementById('winning-line');
+            line.className = 'hidden';
+
+            updateTurnDisplay();
+            startTurnTimer();
+        }
+
+        function resetScores() {
+            scores = { x: 0, o: 0, draws: 0 };
+            winStreak = 0;
+            updateScoresUI();
+            resetGame();
+        }
+
+        function updateScoresUI() {
+            document.getElementById('score-x').textContent = scores.x;
+            document.getElementById('score-o').textContent = scores.o;
+            document.getElementById('score-draws').textContent = scores.draws;
+        }
+
+        // Initialisation au chargement
+        renderCosmeticsUI();
+        updateXPUI();
+        updateTurnDisplay();
+    </script>
+</body>
+</html>
